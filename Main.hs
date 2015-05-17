@@ -39,8 +39,8 @@ getChunks bs = chunkIterator bs []
   where chunkIterator bs chunks = do nextChunk <- getChunk bs
                                      processNext bs nextChunk chunks
         processNext _ Nothing chunks = return chunks
-        processNext bs (Just chunk) chunks = chunkIterator 
-          (B.drop (fromIntegral (dataLength chunk) + 12) bs) 
+        processNext bs (Just chunk) chunks = chunkIterator
+          (B.drop (fromIntegral (dataLength chunk) + 12) bs)
           (chunks ++ [chunk])
 
 getChunk :: B.ByteString -> IO (Maybe Chunk)
@@ -53,7 +53,7 @@ getChunk bs
         dataLength = byteStringToWord32 lengthBytes
         (chunkType, pastType) = B.splitAt 4 pastLength
 	emptyDataChecksum = B.take 4 pastType
-        emptyDataChunk = Chunk dataLength lengthBytes chunkType B.empty emptyDataChecksum 
+        emptyDataChunk = Chunk dataLength lengthBytes chunkType B.empty emptyDataChecksum
         (chunkData, pastData) = B.splitAt (fromIntegral dataLength) pastType
         checkSum = B.take 4 pastData
 
@@ -82,7 +82,7 @@ minPngFileName filename
                   in name ++ ".min" ++ ext
     where indices = findIndices (== '.') filename
 
-main = do 
+main = do
     args <- getArgs
     handle <- IO.openBinaryFile (args !! 0) IO.ReadMode
     bytes <- B.hGetContents handle
