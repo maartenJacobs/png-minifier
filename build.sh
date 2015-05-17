@@ -1,4 +1,4 @@
 #!/bin/bash
 
-ghc --make -o Main.out Main
+ghc -Wall --make -o Main.out Main
 
