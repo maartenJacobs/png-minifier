@@ -1,5 +1,5 @@
-import System.IO          as IO (openBinaryFile, IOMode(ReadMode, WriteMode),
-                                 hClose, Handle, withBinaryFile)
+import System.IO          as IO (IOMode(ReadMode, WriteMode),
+                                 Handle, withBinaryFile)
 import System.Environment (getArgs)
 import Data.ByteString    as B (ByteString, length, take, pack, foldl,
                                 hGetContents, splitAt, empty, drop,
@@ -46,16 +46,23 @@ getChunk :: ByteString -> IO (Maybe Chunk)
 getChunk bs
   | B.length bs < 12 = do return Nothing
   | otherwise = return . Just $ if dataLength == 0
-                  then emptyDataChunk
-                  else dataChunk
+                  then mkEmptyChunk lengthBytes pastLength
+                  else mkDataChunk dataLength lengthBytes pastLength
   where (lengthBytes, pastLength) = B.splitAt 4 bs
         dataLength = byteStringToNum lengthBytes
-        (chunkType, pastType) = B.splitAt 4 pastLength
-	emptyDataChecksum = B.take 4 pastType
-        emptyDataChunk = Chunk dataLength lengthBytes chunkType B.empty emptyDataChecksum
-        (chunkData, pastData) = B.splitAt (fromIntegral dataLength) pastType
-        checkSum = B.take 4 pastData
-        dataChunk = Chunk dataLength lengthBytes chunkType chunkData checkSum
+
+mkDataChunk :: Word32 -> ByteString -> ByteString -> Chunk
+mkDataChunk dataLength lengthBytes bs =
+    Chunk dataLength lengthBytes chunkType chunkData checkSum
+    where (chunkType, pastType) = B.splitAt 4 bs
+          (chunkData, pastData) = B.splitAt (fromIntegral dataLength)
+                                            pastType
+          checkSum = B.take 4 pastData
+
+mkEmptyChunk :: ByteString -> ByteString -> Chunk
+mkEmptyChunk lengthBytes bs = Chunk 0 lengthBytes chunkType B.empty checkSum
+    where (chunkType, pastType) = B.splitAt 4 bs
+          checkSum = B.take 4 pastType
 
 hPutPngChunks :: Handle -> [Chunk] -> IO ()
 hPutPngChunks handle chunks = do
@@ -87,13 +94,13 @@ main :: IO ()
 main = do
     args <- getArgs
     let filename = args !! 0
-    handle <- openBinaryFile filename ReadMode
-    bytes <- hGetContents handle
-    hClose handle
+    bytes <- withBinaryFile filename ReadMode hGetContents
     Prelude.putStrLn $ pngSigMessage bytes
     let chunksBytes = B.drop 8 bytes
     chunks <- getChunks chunksBytes
     let critChunks = filter isCriticalChunk chunks
-    withBinaryFile (minPngFileName filename) WriteMode ((flip hPutPngChunks) critChunks)
+    let outputFilename = minPngFileName filename
+    let outputHandler = (flip hPutPngChunks) critChunks
+    withBinaryFile outputFilename WriteMode outputHandler
     return ()
 
