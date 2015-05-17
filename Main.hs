@@ -4,7 +4,7 @@ import System.Environment (getArgs)
 import Data.ByteString    as B (ByteString, length, take, pack, foldl,
                                 hGetContents, splitAt, empty, drop,
                                 hPut, head)
-import Data.Word          as W (Word8, Word32)
+import Data.Word          as W (Word32)
 import Data.Bits (testBit)
 import Data.List (findIndices)
 
@@ -29,10 +29,9 @@ pngSigMessage bs
   | otherwise = "Unknown file type"
 
 -- Most likely unnecessary: it is only here for educational purposes
-byteStringToWord32 :: ByteString -> Word32
-byteStringToWord32 bs = B.foldl addWord 0 bs
-  where addWord :: Word32 -> Word8 -> Word32
-        addWord acc w = acc * 256 + (fromIntegral w)
+byteStringToNum :: Num a => ByteString -> a
+byteStringToNum bs = B.foldl addWord 0 bs
+  where addWord acc w = acc * 256 + (fromIntegral w)
 
 getChunks :: ByteString -> IO [Chunk]
 getChunks bs = chunkIterator bs []
@@ -50,7 +49,7 @@ getChunk bs
                   then emptyDataChunk
                   else dataChunk
   where (lengthBytes, pastLength) = B.splitAt 4 bs
-        dataLength = byteStringToWord32 lengthBytes
+        dataLength = byteStringToNum lengthBytes
         (chunkType, pastType) = B.splitAt 4 pastLength
 	emptyDataChecksum = B.take 4 pastType
         emptyDataChunk = Chunk dataLength lengthBytes chunkType B.empty emptyDataChecksum
